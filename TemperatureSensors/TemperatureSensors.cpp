@@ -14,21 +14,25 @@
 
 DeviceAddress amb =    { 0x28, 0x58, 0x9A, 0x60, 0x5, 0x0, 0x0, 0x3E }; //	28 58 9A 60 05 00 00 3E
 
-TemperatureSensors::TemperatureSensors(uint8_t owpin, uint8_t barrelPin, uint8_t meatPin) {
+TemperatureSensors::TemperatureSensors(uint8_t owpin, uint8_t ovenAmbientNTCPin, uint8_t meatNTCPin, uint8_t barrelTCPin) {
 	owTempSensor = new OneWire(owpin);
 	tempSensors = new DallasTemperature(owTempSensor);
 
 	// Define all the addresses of the sensors
 	ambientThermometer = &amb;
 
-	//initialize the temp sensors;
+	// initialize the temp sensors;
 	tempSensors->begin();
+
+	// Initialize the thermocouple
+	barrelThermocouple = new AD595();
+	barrelThermocouple->init(barrelTCPin);
 
 	// set the resolution
 	tempSensors->setResolution(*ambientThermometer, TEMPERATURE_PRECISION);
 
-	barrel_pin = barrelPin;
-	meat_pin = meatPin;
+	barrel_pin = ovenAmbientNTCPin;
+	meat_pin = meatNTCPin;
 	barrelTemp=0.0f;
 	meatTemp=0.0f;
 
@@ -39,7 +43,7 @@ float TemperatureSensors::getTemperature(DeviceAddress *addr) {
 	return tempSensors->getTempC(*addr);
 }
 
-float TemperatureSensors::getBarrelTemperature(void) {
+float TemperatureSensors::getOvenAmbientTemperature(void) {
 	char buf[8];
 
 	barrelTemp = getNTCTemp(analogRead(barrel_pin), (float)RBALANCE, RNTCNOMINAL, 4783);
@@ -54,6 +58,11 @@ float TemperatureSensors::getMeatTemperature(void) {
 	dtostrf((double)meatTemp, 0, 1, buf);
 	return meatTemp;
 }
+
+float TemperatureSensors::getBarrelTemperature(void) {
+	return barrelThermocouple->measure(TEMPC);
+}
+
 
 float TemperatureSensors::getAmbientTemperature(void) {
 	return getTemperature(ambientThermometer);

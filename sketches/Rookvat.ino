@@ -1,3 +1,4 @@
+
 //Own libraries
 #include <Menu.h>
 #include <RGBLed.h>
@@ -12,6 +13,7 @@
 
 #include <DallasTemperature.h>
 #include <OneWire.h>
+#include <AD595.h>
 
 #include <mmc.h>
 #include <tinyFAT.h>
@@ -26,6 +28,7 @@
 
 #include <Servo.h>
 #include <Stepper.h>
+
 
 const int TARGET_TEMP_BARREL = 0;
 const int TARGET_TEMP_MEAT = 1;
@@ -60,6 +63,7 @@ const int smokerRegulationInterval = 60; // Every minute. Hope it is ok.
 
 const int meatTempPin = A4;
 const int barrelTempPin = A5;
+const int barrelTCPin = A6;
 
 const int TFT_CS = 53;
 const int TFT_DC = 49;
@@ -69,8 +73,8 @@ const int TFT_CLK = 52;
 const int TFT_RST = 48;
 const int SD_CS = 47;
 
-/* Initialize the one wire sensors*/
-TemperatureSensors tempSensors(oneWireTempSensors_pin, barrelTempPin, meatTempPin);
+/* Initialize the temperature sensors (DS8B20, NTC, Thermocouple)*/
+TemperatureSensors tempSensors(oneWireTempSensors_pin, barrelTempPin, meatTempPin, barrelTCPin);
 
 /* Initialize the RGB Led */
 RGBLed led1(led1_R,led1_G,led1_B);

@@ -28,7 +28,7 @@ public:
 	~Logger();
 	char* createUniqueFileName(void);
 
-	void writeLoggingInfo(double ambTemp, double meatTemp, double barrelTemp,
+	void writeLoggingInfo(double ambTemp, double meatTemp, double barrelTemp, double ovenAmbTemp,
 			double targetTemp, int targetTempLocation, double used_temp,
 			double tempdiff_now, double tempdiff_last, long gasValveStep,
 			long smokeValveStep);

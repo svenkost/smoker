@@ -71,15 +71,15 @@ char *Logger::verboseError(byte err) {
 ambient: 123.1, barrel: 123.1, meat: 123.1, target: 123.5, location: BARREL, current_temp_diff: 123.1, last_temp_diff: 123.1, gasValvePosition: 10000, smokeValvePosition: 999
 */
 void Logger::writeLoggingInfo(double ambTemp, double meatTemp,
-		double barrelTemp, double targetTemp, int targetTempLocation,
+		double barrelTemp, double ovenAmbTemp, double targetTemp, int targetTempLocation,
 		double used_temp, double tempdiff_now, double tempdiff_last,
 		long gasValveStep, long smokeValveStep)
 {
-	char* text = (char*) malloc(180 * sizeof(char));
+	char* text = (char*) malloc(200 * sizeof(char));
 
 	sprintf(text,
-			"ambient: %3.1f, barrel: %3.1f, meat: %3.1f, target: %3.1f, location: %s, current_temp_diff: %3.1f, last_temp_diff: %3.1f, gasValvePosition: %l, smokeValvePosition: %l",
-			ambTemp, barrelTemp, meatTemp, targetTemp, targetTempLocation?"MEAT":"BARREL", targetTemp, tempdiff_now, tempdiff_last, gasValveStep, smokeValveStep);
+			"ambient: %3.1f, barrel: %3.1f, meat: %3.1f, ovenambient: %3.1f, target: %3.1f, location: %s, current_temp_diff: %3.1f, last_temp_diff: %3.1f, gasValvePosition: %l, smokeValvePosition: %l",
+			ambTemp, barrelTemp, meatTemp, ovenAmbTemp, targetTemp, targetTempLocation?"MEAT":"BARREL", targetTemp, tempdiff_now, tempdiff_last, gasValveStep, smokeValveStep);
 
 	writeln(text);
 	free(text);

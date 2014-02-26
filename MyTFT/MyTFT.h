@@ -19,7 +19,7 @@
 class MyTFT {
 protected:
 	Adafruit_ILI9341 *tft;
-	float last_ambient, last_barrel, last_meat, last_target;
+	float last_ambient, last_barrel, last_barrelamb, last_meat, last_target;
 	int last_gasvalve, last_smokevalve, last_smoking_started;
 	long last_secondsRemaining;
 	bool last_is_meat_selected;
@@ -29,7 +29,7 @@ public:
 	MyTFT(Adafruit_ILI9341* t);
 	Adafruit_ILI9341* getTFT(void);
 	void displayTime(tmElements_t *time);
-	void displayTemps(float ambient, float meat, float barrel, float target, bool isMeatSelected);
+	void displayTemps(float ambient, float meat, float barrelamb, float barrel, float target, bool isMeatSelected);
 	void displayValveStatus(int smokeValve, int gasValve);
 	void displayTimeRemaining(long secondsRemaining, int smokingStarted);
 };

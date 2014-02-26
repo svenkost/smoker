@@ -6,7 +6,7 @@
  */
 #include "TemperatureSensors.h"
 
-#define RBALANCE 30250 //30.25 KOhm
+#define RBALANCE 31750 //30.25 KOhm
 #define RNTCNOMINAL 1010000.0 //1.01MOhm
 
 #define celciusToKelvin 273.15

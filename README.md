@@ -1,1 +1,1 @@
-This is my code for my arduino controlled barbeque smoker.
+This is code for my arduino controlled gas barbeque smoker. It uses multiple thermometers, a motor to control the gasvalve and a motor to control the smoke valve. I use an Arduino Mega2560 to control it all. The code is not that generic it works with all configurations. It's just for my configuration. But feel free to make it more generic. 

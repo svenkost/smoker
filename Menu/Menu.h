@@ -83,13 +83,13 @@ public:
 class TimeSelector : public Selector {
 private:
 	char* time;
-	int* minutes;
+	unsigned long* minutes;
 	int minute_steps;
 	int mintime;
 	int maxtime;
 public: 
 	~TimeSelector();
-	TimeSelector (const char* question, int* tijd, int minute_steps);
+	TimeSelector (const char* question, unsigned long* tijd, int minute_steps);
 	bool increase(void);
 	bool decrease(void);
 	char* getValue(void);

@@ -33,6 +33,8 @@ void MyTFT::init(void) {
 	last_smokevalve = -1;
 	last_secondsRemaining = -1;
 	last_smoking_started =-1;
+	init_temps=false;
+	init_valves=false;
 }
 
 Adafruit_ILI9341* MyTFT::getTFT(void) {
@@ -61,76 +63,82 @@ void MyTFT::displayTemps(float ambient, float meat, float barrelamb, float barre
 	if (ambient != last_ambient) {
 		last_ambient=ambient;
 		uint16_t col = tft->color565(0, 120, 0); //green
-//		tft->drawRect(0,210,106,30, col);
-		tft->drawRect(0,210,80,30,col);
 		tft->setTextColor(col);
-		tft->setTextSize(1);
-		tft->setCursor(3,212);
-		tft->println("Omgevingtemp");
-//		tft->fillRect(1,222,104,15,ILI9341_WHITE);
-		tft->fillRect(1,222,78,15,ILI9341_WHITE);
+		if (!init_temps) {
+			tft->drawRect(0,210,80,30,col);
+			tft->setTextSize(1);
+			tft->setCursor(3,212);
+			tft->println("Omgevingtemp");
+		} else {
+			tft->fillRect(1,222,78,15,ILI9341_WHITE);
+		}
 		tft->setTextSize(2);
 		tft->setCursor(3,222);
 		tft->print(ambient);
 	}
 	if (meat != last_meat) {
 		last_meat = meat;
-//		tft->drawRect(106,210,110,30, ILI9341_MAGENTA);
-		tft->drawRect(80,210,80,30, ILI9341_MAGENTA);
+
 		tft->setTextColor(ILI9341_MAGENTA);
-		tft->setTextSize(1);
-//		tft->setCursor(110,212);
-		tft->setCursor(83,212);
-		tft->println("Vlees temp");
-		tft->fillRect(81,222,78,15,ILI9341_WHITE);
+		if (!init_temps) {
+			tft->drawRect(80,210,80,30, ILI9341_MAGENTA);
+			tft->setTextSize(1);
+			tft->setCursor(83,212);
+			tft->println("Vlees temp");
+		} else {
+			tft->fillRect(81,222,78,15,ILI9341_WHITE);
+		}
 		tft->setTextSize(2);
-//		tft->setCursor(110,222);
 		tft->setCursor(83,222);
 		tft->print(meat);
 	}
 	if (barrelamb != last_barrelamb) {
 		last_barrelamb = barrelamb;
 		uint16_t col = tft->color565(205, 92, 92); //indian red
-		tft->drawRect(160,210,80,30, col);
-		tft->setTextColor(ILI9341_RED);
-		tft->setTextSize(1);
-		tft->setCursor(163,212);
-		tft->println("Vat NTC temp");
-		tft->fillRect(161,222,78,15,ILI9341_WHITE);
+		tft->setTextColor(col);
+		if (!init_temps) {
+			tft->drawRect(160,210,80,30, col);
+			tft->setTextSize(1);
+			tft->setCursor(163,212);
+			tft->println("Vat pen temp");
+		} else {
+			tft->fillRect(161,222,78,15,ILI9341_WHITE);
+		}
 		tft->setTextSize(2);
 		tft->setCursor(163,222);
 		tft->print(barrelamb);
 	}
 	if (barrel != last_barrel) {
 		last_barrel = barrel;
-//		tft->drawRect(216,210,104,30, ILI9341_RED);
-		tft->drawRect(240,210,80,30, ILI9341_RED);
-		tft->setTextColor(ILI9341_RED);
-		tft->setTextSize(1);
-//		tft->setCursor(220,212);
-		tft->setCursor(243,212);
-		tft->println("Vat TC temp");
-//		tft->fillRect(220,222,99,15,ILI9341_WHITE);
-		tft->fillRect(241,222,78,15,ILI9341_WHITE);
+		uint16_t col = tft->color565(153,50,204);
+		tft->setTextColor(col);
+		if (!init_temps) {
+			tft->drawRect(240,210,80,30, col);
+			tft->setTextSize(1);
+			tft->setCursor(243,212);
+			tft->println("Vat temp");
+		} else {
+			tft->fillRect(241,222,78,15,ILI9341_WHITE);
+		}
 		tft->setTextSize(2);
-//		tft->setCursor(220,222);
 		tft->setCursor(243,222);
 		tft->print(barrel);
 	}
 	if (target != last_target) {
 		last_target = target;
-		uint16_t col = tft->color565(223, 150, 4);
-
-		tft->drawRect(106,180,110,30, col);
+		uint16_t col = tft->color565(112, 75, 4);
 		tft->setTextColor(col);
-		tft->setTextSize(1);
-		tft->setCursor(110,182);
-		tft->println("Gekozen temp");
-		tft->fillRect(110,192,104,15,ILI9341_WHITE);
+		if (!init_temps) {
+			tft->drawRect(106,180,110,30, col);
+			tft->setTextSize(1);
+			tft->setCursor(110,182);
+			tft->println("Gekozen temp");
+		} else {
+			tft->fillRect(110,192,104,15,ILI9341_WHITE);
+		}
 		tft->setTextSize(2);
 		tft->setCursor(110,192);
 		tft->print(target);
-
 	}
 	if (last_is_meat_selected != isMeatSelected) {
 		last_is_meat_selected = isMeatSelected;
@@ -142,9 +150,10 @@ void MyTFT::displayTemps(float ambient, float meat, float barrelamb, float barre
 			tft->drawRect(241, 211, 78, 28, ILI9341_RED);
 		}
 	}
+	init_temps=true;
 }
 
-void MyTFT::displayTimeRemaining(long secondsRemaining, int smokingStarted) {
+void MyTFT::displayTimeRemaining(unsigned long secondsRemaining, int smokingStarted) {
 	if (last_secondsRemaining != secondsRemaining) {
 		last_secondsRemaining = secondsRemaining;
 		int hours = secondsRemaining/3600;
@@ -182,30 +191,35 @@ void MyTFT::displayValveStatus(int smokeValve, int gasValve) {
 		uint16_t col = tft->color565(255, 0, 127); //pink
 
 		last_smokevalve = smokeValve;
-		tft->drawRect(0,180,106,30, col);
 		tft->setTextColor(col);
-		tft->setTextSize(1);
-		tft->setCursor(2,182);
-		tft->println("Rook klep");
-		tft->fillRect(1,192,102,15,ILI9341_WHITE);
+		if (!init_valves) {
+			tft->drawRect(0,180,106,30, col);
+			tft->setTextSize(1);
+			tft->setCursor(2,182);
+			tft->println("Rook klep");
+		} else {
+			tft->fillRect(1,192,102,15,ILI9341_WHITE);
+		}
 		tft->setTextSize(2);
 		tft->setCursor(3,192);
 		tft->print(smokeValve);
-
 	}
 
 	if (gasValve != last_gasvalve) {
 		uint16_t col = tft->color565(0, 123, 123); //dark cyan
 		last_gasvalve = gasValve;
-		tft->drawRect(216,180,104,30, col);
 		tft->setTextColor(col);
-		tft->setTextSize(1);
-		tft->setCursor(220,182);
-		tft->println("Gas klep");
-		tft->fillRect(220,192,99,15,ILI9341_WHITE);
+		if (!init_valves) {
+			tft->drawRect(216,180,104,30, col);
+			tft->setTextSize(1);
+			tft->setCursor(220,182);
+			tft->println("Gas klep");
+		} else {
+			tft->fillRect(220,192,99,15,ILI9341_WHITE);
+		}
 		tft->setTextSize(2);
 		tft->setCursor(220,192);
 		tft->print(gasValve);
-
 	}
+	init_valves = true;
 }

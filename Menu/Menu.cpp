@@ -187,7 +187,7 @@ char* StringSelector::getValue(void) {
 	return value;
 };
 
-TimeSelector::TimeSelector (const char* q, int* tijd, int minutesteps){
+TimeSelector::TimeSelector (const char* q, unsigned long* tijd, int minutesteps){
 	time = (char*) malloc(10*sizeof(char));
 	question = q;
 	minute_steps = minutesteps;

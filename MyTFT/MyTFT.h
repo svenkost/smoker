@@ -23,6 +23,7 @@ protected:
 	int last_gasvalve, last_smokevalve, last_smoking_started;
 	long last_secondsRemaining;
 	bool last_is_meat_selected;
+	bool init_temps, init_valves;
 	void init(void);
 public:
 	MyTFT(uint8_t TFT_CS, uint8_t TFT_DC, uint8_t TFT_MOSI, uint8_t TFT_CLK, uint8_t TFT_RST, uint8_t TFT_MISO);
@@ -31,7 +32,7 @@ public:
 	void displayTime(tmElements_t *time);
 	void displayTemps(float ambient, float meat, float barrelamb, float barrel, float target, bool isMeatSelected);
 	void displayValveStatus(int smokeValve, int gasValve);
-	void displayTimeRemaining(long secondsRemaining, int smokingStarted);
+	void displayTimeRemaining(unsigned long secondsRemaining, int smokingStarted);
 };
 
 #endif /* MYTFT_H_ */

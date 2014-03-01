@@ -1,4 +1,3 @@
-
 //Own libraries
 #include <Menu.h>
 #include <RGBLed.h>
@@ -7,6 +6,7 @@
 #include <TemperatureSensors.h>
 #include <Logger.h>
 #include <MyTFT.h>
+#include <SmokerRegulator.h>
 
 //3rd party libraries
 #include <Encoder.h>
@@ -29,6 +29,7 @@
 #include <Servo.h>
 #include <Stepper.h>
 
+#include <PID_v1.h>
 
 const int TARGET_TEMP_BARREL = 0;
 const int TARGET_TEMP_MEAT = 1;
@@ -74,7 +75,7 @@ const int TFT_RST = 48;
 const int SD_CS = 47;
 
 /* Initialize the temperature sensors (DS8B20, NTC, Thermocouple)*/
-TemperatureSensors tempSensors(oneWireTempSensors_pin, barrelTempPin, meatTempPin, barrelTCPin);
+TemperatureSensors *tempSensors;
 
 /* Initialize the RGB Led */
 RGBLed led1(led1_R,led1_G,led1_B);
@@ -106,9 +107,9 @@ Menu *mainMenu = new Menu(menuButton);
 Logger logger(SD_CS);
 
 /* Here are all the parameters for the application */
-float target_temp = 30.0; // The target temperature 
+double target_temp = 30.0; // The target temperature 
 int target_temp_location = TARGET_TEMP_BARREL;
-int rooktijd=120; //smoketime in minutes
+unsigned long rooktijd=120; //smoketime in minutes
 
 int current_hour=10;
 int current_minute=30;
@@ -132,8 +133,12 @@ void setup() {
   // initialize Serial device to support debugging
   Serial.begin(9600);
 
+  //initialize the thermometers
+  tempSensors = new TemperatureSensors(oneWireTempSensors_pin, barrelTempPin, meatTempPin, barrelTCPin);
+
   //initialize the LCD
   tft = new MyTFT(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_RST, TFT_MISO);
+
   //initialize the menu
   createMenu();
   
@@ -224,14 +229,14 @@ void loop() {
   }
 
   // Check the temps
-  barrelTemp = tempSensors.getBarrelTemperature();
-  meatTemp = tempSensors.getMeatTemperature();
-  ambientTemp = tempSensors.getAmbientTemperature();
-  ovenAmbTemp = tempSensors.getOvenAmbientTemperature();
+  barrelTemp = tempSensors->getBarrelTemperature();
+  meatTemp = tempSensors->getMeatTemperature();
+  ambientTemp = tempSensors->getAmbientTemperature();
+  ovenAmbTemp = tempSensors->getOvenAmbientTemperature();
   
   RTC.read(tm);
   // display the temps and time at the LCD
-  tft->displayTemps(ambientTemp, meatTemp, barrelTemp, target_temp, target_temp_location == TARGET_TEMP_MEAT);
+  tft->displayTemps(ambientTemp, meatTemp, ovenAmbTemp, barrelTemp, target_temp, target_temp_location == TARGET_TEMP_MEAT);
   tft->displayTime(&tm);
 //  tft->displayTimeRemaining(seconds_smoking_left, smoking_started);
 
@@ -252,10 +257,10 @@ void loop() {
     if (current - lastregulation > smokerRegulationInterval) {
 
       // Check the temps
-      barrelTemp = tempSensors.getBarrelTemperature();
-      meatTemp = tempSensors.getMeatTemperature();
-      ambientTemp = tempSensors.getAmbientTemperature();
-      ovenAmbTemp = tempSensors.getOvenAmbientTemperature();
+      barrelTemp = tempSensors->getBarrelTemperature();
+      meatTemp = tempSensors->getMeatTemperature();
+      ambientTemp = tempSensors->getAmbientTemperature();
+      ovenAmbTemp = tempSensors->getOvenAmbientTemperature();
       
       if (ambientTemp > target_temp) {
         logger.writeln("Error: ambient temperature higher than target temperature. Aborting!");
@@ -460,7 +465,7 @@ void loop() {
       // now make sure the interval is reset
       lastregulation = RTC.get();
       // now check if the endtime is reached
-      long seconds_smoking_left = determineSmokingTimeLeftInSeconds(starttime, lastregulation, rooktijd);
+      unsigned long seconds_smoking_left = determineSmokingTimeLeftInSeconds(starttime, lastregulation, rooktijd);
       tft->displayTimeRemaining(seconds_smoking_left, smoking_started);
       if (seconds_smoking_left<0) {
         smoking_started=false;
@@ -483,9 +488,9 @@ void loop() {
 /*
  * calculates the remaining time in seconds
  */
-long determineSmokingTimeLeftInSeconds(time_t starttime, time_t currenttime, int smoketime_in_minutes) {
-  long timeSmokerActiveInSeconds = currenttime - starttime;
-  long totalSmokingTimeInSeconds = (long)smoketime_in_minutes * 60l;
+unsigned long determineSmokingTimeLeftInSeconds(time_t starttime, time_t currenttime, unsigned long smoketime_in_minutes) {
+  unsigned long timeSmokerActiveInSeconds = currenttime - starttime;
+  unsigned long totalSmokingTimeInSeconds = smoketime_in_minutes * 60l;
 
   return totalSmokingTimeInSeconds - timeSmokerActiveInSeconds; 
 }
@@ -507,7 +512,7 @@ void createMenu() {
   StringOption* startopties = new StringOption("Nee\0");
   startopties->addOption("Ja\0");
 
-  FloatSelector *tempsel = new FloatSelector("Stel temperatuur in:\0", &target_temp, 0.5f, 10, 250);
+  DoubleSelector *tempsel = new DoubleSelector("Stel temperatuur in:\0", &target_temp, 0.5f, 10, 250);
   StringSelector *valuesel = new StringSelector("Meet locatie:\0", &target_temp_location, opt);
   TimeSelector *timesel = new TimeSelector("Rooktijd:\0", &rooktijd, 5);
   StringSelector *smokestartsel = new StringSelector("Nu starten:\0", &smoking_started, startopties);

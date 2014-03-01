@@ -46,6 +46,49 @@ char* FloatSelector::getValue(void) {
 	return temp;
 }
 
+DoubleSelector::~DoubleSelector(void) {
+	free(temp);
+};
+
+DoubleSelector::DoubleSelector(const char* q, double* value, double step, double minimum, double maximum) {
+	temp = (char*) malloc(10*sizeof(char));
+	min = minimum;
+	max = maximum;
+	question = q;
+	selected = value;
+	stepping = step;
+}
+
+bool DoubleSelector::increase(void) {
+	bool retval = false;
+	if (*selected+stepping > max) {
+		*selected = max;
+		retval = true;
+	} else {
+		*selected += stepping;
+	}
+	return retval;
+}
+
+bool DoubleSelector::decrease(void) {
+	bool retval = false;
+	if (*selected-stepping < min) {
+		*selected = min;
+		retval = true;
+	} else {
+		*selected -= stepping;
+	}
+	return retval;
+}
+
+char* DoubleSelector::getValue(void) {
+	*temp = '\0';
+	dtostrf(*selected, 5, 1, temp);
+	return temp;
+}
+
+
+
 IntSelector::~IntSelector(void) {
 	free(temp);
 };

@@ -67,6 +67,21 @@ public:
 	char* getValue(void);
 };	
 
+class DoubleSelector : public Selector {
+private:
+	double min;
+	double max;
+	double *selected;
+	double stepping;
+	char *temp;
+public:
+	DoubleSelector (const char* question, double* value, double step, double minimum, double maximum);
+	~DoubleSelector(void);
+	bool increase(void);
+	bool decrease(void);
+	char* getValue(void);
+};
+
 class StringSelector : public Selector {
 private:
 	char* value;

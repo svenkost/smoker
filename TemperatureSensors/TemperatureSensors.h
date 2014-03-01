@@ -30,6 +30,7 @@ protected:
 	float meatTemp;
 
 	float getNTCTemp(int analogValue, float rBalance, float R25, float tempCoefficient);
+	float getNTCAvgTemp(uint8_t pin);
 	float getVoltage(int analogValue);
 	float getTemperature(DeviceAddress *addr);
 public:

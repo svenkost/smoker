@@ -12,7 +12,7 @@ const float RNTCNOMINAL=1010000.0f; //1.01MOhm
 const float celciusToKelvin=273.15f;
 const float boardVoltageWhenOnAC=5.04f;
 
-const int MAX_SAMPLES_NTC=10;
+const int MAX_SAMPLES_NTC=100;
 
 DeviceAddress amb = { 0x28, 0x58, 0x9A, 0x60, 0x5, 0x0, 0x0, 0x3E }; //	28 58 9A 60 05 00 00 3E
 
@@ -37,7 +37,7 @@ TemperatureSensors::TemperatureSensors(uint8_t owpin, uint8_t ovenAmbientNTCPin,
 	meat_pin = meatNTCPin;
 	barrelTemp=0.0f;
 	meatTemp=0.0f;
-
+	stat = new Statistic();
 }
 
 float TemperatureSensors::getMeatTemperature(void) {
@@ -64,10 +64,17 @@ float TemperatureSensors::getTemperature(DeviceAddress *addr) {
 }
 
 float TemperatureSensors::getNTCAvgTemp(uint8_t pin) {
-	float temps[MAX_SAMPLES_NTC], min_temp, max_temp, avg=0.0f;
-	int min_index, max_index;
+//	float temps[MAX_SAMPLES_NTC], min_temp, max_temp, avg=0.0f;
+//	int min_index, max_index;
+	float avg;
 
+	stat->clear();
 	for (int i=0;i<MAX_SAMPLES_NTC;i++) {
+		stat->add(getNTCTemp(analogRead(pin), (float)RBALANCE, RNTCNOMINAL, 4783));
+	}
+	avg = stat->average();
+
+/*
 		temps[i] = getNTCTemp(analogRead(pin), (float)RBALANCE, RNTCNOMINAL, 4783);
 		if (i==0) {
 			min_temp = temps[0];
@@ -92,6 +99,7 @@ float TemperatureSensors::getNTCAvgTemp(uint8_t pin) {
 		}
 	}
 	avg /= MAX_SAMPLES_NTC-2;
+	*/
 	return avg;
 }
 

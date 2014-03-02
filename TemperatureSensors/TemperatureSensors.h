@@ -14,6 +14,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <AD595.h>
+#include <Statistic.h>
 
 #define TEMPERATURE_PRECISION 9
 
@@ -28,6 +29,7 @@ protected:
 	uint8_t barrel_pin, meat_pin;
 	float barrelTemp;
 	float meatTemp;
+	Statistic *stat;
 
 	float getNTCTemp(int analogValue, float rBalance, float R25, float tempCoefficient);
 	float getNTCAvgTemp(uint8_t pin);

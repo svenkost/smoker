@@ -146,8 +146,9 @@ void MyTFT::displayTemps(float ambient, float meat, float barrelamb, float barre
 			tft->drawRect(81, 211, 78, 28, ILI9341_MAGENTA);
 			tft->drawRect(241, 211, 78, 28, ILI9341_WHITE);
 		} else {
+			uint16_t col = tft->color565(153,50,204);
 			tft->drawRect(81, 211, 78, 28, ILI9341_WHITE);
-			tft->drawRect(241, 211, 78, 28, ILI9341_RED);
+			tft->drawRect(241, 211, 78, 28, col);
 		}
 	}
 	init_temps=true;

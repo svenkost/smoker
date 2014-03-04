@@ -8,6 +8,11 @@
 #include "SPI.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
+#include <memorysaver.h>
+#include <UTFT.h>
+
+extern uint8_t TinyFont[];
+extern uint8_t BigFont[];
 
 class Menu;
 
@@ -140,8 +145,8 @@ private:
 	MenuItem *start;
 	MenuItem *current;
 	MenuItem *last;
-	bool selected;
-	bool fullRepaintNeeded;
+	volatile bool selected;
+	volatile bool fullRepaintNeeded;
 	
 public:
 	Menu(void);
@@ -152,7 +157,7 @@ public:
 	void selectCurrent(void);
 	void display(void);
 	void display(Adafruit_ILI9341 *t);
-};
+	void display(UTFT *t);};
 
 
 #endif

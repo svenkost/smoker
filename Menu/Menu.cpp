@@ -268,7 +268,7 @@ bool TimeSelector::decrease(void) {
 };
 
 char* TimeSelector::getValue(void) {
-	sprintf(time,"%02d:%02d", *minutes/60, *minutes%60);
+	sprintf(time,"%02lu:%02lu", *minutes/60, *minutes%60);
 	return time;
 }
 
@@ -365,7 +365,7 @@ Menu::Menu(void) {
 	current = NULL;
 	last = NULL;
 	selected=false;
-	fullRepaintNeeded=false;
+	fullRepaintNeeded=true;
 }	
 	
 Menu::Menu(uint8_t selector_pin) {
@@ -376,7 +376,7 @@ Menu::Menu(uint8_t selector_pin) {
 	current = NULL;
 	last = NULL;
 	selected=false;
-	fullRepaintNeeded=false;
+	fullRepaintNeeded=true;
 };
 
 void Menu::addItem(int id, const char* text, bool is_sub, Menu* sub, Selector* sel) {
@@ -429,10 +429,74 @@ void Menu::highlightPrevious(void) {
 	};
 };
 
+void Menu::display(UTFT *t) {
+	if (fullRepaintNeeded) {
+		t->setColor(255,255,255);
+		t->fillRect(0,12,319,119);
+		t->setColor(0,0,255);
+	}
+	// Is there an item selected right now?
+	if (selected && !current->isSubMenu()) {
+		if (!fullRepaintNeeded) {
+			t->setColor(255,255,255);
+			t->fillRect(0,20,319,36);
+		}
+		t->setColor(0,0,255);
+
+		Selector *sel = current->getSelector();
+		if (fullRepaintNeeded) {
+			t->setFont(TinyFont);
+			t->print(sel->getQuestion(), CENTER, 12);
+		}
+		t->setFont(BigFont);
+		t->print(sel->getValue(), CENTER, 40);
+
+	} else {
+		// Is there a submenu selected?
+		if (selected && current->isSubMenu()) {
+			current->getMenu()->display(t);
+		} else { // nothing selected
+			if (!fullRepaintNeeded) {
+				t->setColor(255,255,255);
+				t->fillRect(0,12,18,119);
+			}
+			MenuItem *item;
+			int selected_id = current->getID();
+
+			item = start;
+			t->setFont(TinyFont);
+			t->setColor(0,0,255);
+			int y = 16;
+			while (item!=NULL) {
+				if (item->getID() == selected_id) {
+					t->print("*", 10, y);
+				}
+				if (fullRepaintNeeded) {
+					if (item->getSelector() != NULL) {
+						String printstr = String(item->getText())+
+								String('(')+
+								String(item->getSelector()->getValue())+
+								String(item->isSubMenu()?") >":")");
+					t->print(printstr, 20, y);
+					} else {
+						String printstr = String(item->getText())+
+								String(item->isSubMenu()?" >":"");
+						t->print(printstr, 20, y);
+					}
+				}
+
+				item = item->getNext();
+				y += 12;
+			};
+		};
+	};
+	fullRepaintNeeded = false;
+}
+
+
 void Menu::display(Adafruit_ILI9341 *t) {
 
 	if (fullRepaintNeeded) {
-		fullRepaintNeeded = false;
 		t->fillRect(0,12,320,100,ILI9341_WHITE);
 	}
 	t->setTextColor(ILI9341_BLUE);
@@ -481,6 +545,7 @@ void Menu::display(Adafruit_ILI9341 *t) {
 			};
 		};
 	};
+	fullRepaintNeeded = false;
 };
 
 

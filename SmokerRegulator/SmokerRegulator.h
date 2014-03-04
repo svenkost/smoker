@@ -19,10 +19,10 @@ protected:
 	GasValve *gasValve;
 	SmokeValve *smokeValve;
 public:
-	SmokerRegulator(double *curTemp, double *targTemp, bool measure_in_meat, GasValve *gasvalve, SmokeValve *smokevalve);
+	SmokerRegulator(double *curTemp, double *targTemp, bool measure_in_meat, GasValve *gasvalve, SmokeValve *smokevalve, int interval);
 	void start(void);
 	void stop(void);
-	void calculate(void);
+	void regulate(void);
 
 };
 

@@ -10,7 +10,7 @@
 double aggKp=4, aggKi=0.2, aggKd=1;
 double consKp=1, consKi=0.05, consKd=0.25;
 
-SmokerRegulator::SmokerRegulator(double *curTemp, double *targTemp, bool measure_in_meat, GasValve *gasvalve, SmokeValve *smokevalve) {
+SmokerRegulator::SmokerRegulator(double *curTemp, double *targTemp, bool measure_in_meat, GasValve *gasvalve, SmokeValve *smokevalve, int interval) {
 	measured_in_meat = measure_in_meat;
 	currentTemp = curTemp;
 	targetTemp = targTemp;
@@ -21,6 +21,7 @@ SmokerRegulator::SmokerRegulator(double *curTemp, double *targTemp, bool measure
 	} else {
 		myPID = new PID(currentTemp, &output, targetTemp, aggKp, aggKi, aggKd, DIRECT);
 	}
+	myPID->SetSampleTime(interval);
 }
 
 void SmokerRegulator::start() {
@@ -31,7 +32,7 @@ void SmokerRegulator::stop() {
 	myPID->SetMode(MANUAL);
 }
 
-void SmokerRegulator::calculate() {
+void SmokerRegulator::regulate() {
 	double diff = *targetTemp - *currentTemp;
 
 	if (!measured_in_meat) {
@@ -41,10 +42,12 @@ void SmokerRegulator::calculate() {
 			myPID->SetTunings(aggKp, aggKi, aggKd);
 		}
 	}
-	myPID->Compute();
+	if (myPID->Compute()) {
+		// Now determine the gas/smoke valve settings and change them with 'output' from the PID routine as
+		// main parameter.
 
-	// Now determine the gas/smoke valve settings and change them with 'output' from the PID routine as
-	// main parameter.
+	}
+
 
 }
 

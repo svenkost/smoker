@@ -6,7 +6,9 @@
 #include <TemperatureSensors.h>
 #include <Logger.h>
 #include <MyTFT.h>
+#include <MyUTFT.h>
 #include <SmokerRegulator.h>
+#include <Statistic.h>
 
 //3rd party libraries
 #include <Encoder.h>
@@ -21,6 +23,9 @@
 #include "SPI.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
+
+#include <memorysaver.h>
+#include <UTFT.h>
 
 #include <DS1307RTC.h>
 #include <Time.h>
@@ -89,13 +94,16 @@ Encoder gasValveMotorRotationCheck(gasValveMotorRotationCheck_RE_A, gasValveMoto
 
 /* Initialize the LCD Panel */
 //Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_RST, TFT_MISO);
-MyTFT *tft;
+MyUTFT *tft;
+
+/* Initialize the PID regulator */
+SmokerRegulator *regulator;
 
 /* Initialize the RTC (Real Time Clock) */
 // nothing?!
 
 /* Initialize the gas valve; it uses a rotary encoder to check if the gas valve is at the end */
-GasValve gasValve(&gasValveMotorRotationCheck, gasValveMotorA, gasValveMotorB, gasValveMotorC, gasValveMotorD);
+GasValve *gasValve;
 
 /* Initialize the servo */
 SmokeValve *smokeValve; 
@@ -137,7 +145,7 @@ void setup() {
   tempSensors = new TemperatureSensors(oneWireTempSensors_pin, barrelTempPin, meatTempPin, barrelTCPin);
 
   //initialize the LCD
-  tft = new MyTFT(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_RST, TFT_MISO);
+  tft = new MyUTFT(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_RST, TFT_MISO);
 
   //initialize the menu
   createMenu();
@@ -147,7 +155,8 @@ void setup() {
   smokeValve->fullyClose();
 
   //Close the gasvalve
-  gasValve.fullyClose();
+  gasValve = new GasValve(&gasValveMotorRotationCheck, gasValveMotorA, gasValveMotorB, gasValveMotorC, gasValveMotorD);
+  gasValve->fullyClose();
 
   //blink light to indicate start
   led1.changeColor(&COLOR_GREEN);
@@ -169,6 +178,8 @@ void setup() {
 
   // Create a new file
   logger.createUniqueFileName();
+  
+  regulator = NULL;
 }
 
 /*
@@ -176,8 +187,8 @@ void setup() {
  */
 void loop() {
   long gasValvePos, smokeValvePos;
-  float barrelTemp, meatTemp, ambientTemp, ovenAmbTemp;
-
+  double barrelTemp, meatTemp, ambientTemp, ovenAmbTemp;
+  double *cur_temp;
 
   tmElements_t tm;
 
@@ -233,7 +244,7 @@ void loop() {
   meatTemp = tempSensors->getMeatTemperature();
   ambientTemp = tempSensors->getAmbientTemperature();
   ovenAmbTemp = tempSensors->getOvenAmbientTemperature();
-  
+  cur_temp = (target_temp_location == TARGET_TEMP_BARREL)?&barrelTemp:&meatTemp;
   RTC.read(tm);
   // display the temps and time at the LCD
   tft->displayTemps(ambientTemp, meatTemp, ovenAmbTemp, barrelTemp, target_temp, target_temp_location == TARGET_TEMP_MEAT);
@@ -251,6 +262,12 @@ void loop() {
       lasttempdif = 0;
       // Change led to green to indicate that smoking is started
       led1.changeColor(&COLOR_GREEN);
+      // Initialize the PID
+      if (regulator != NULL) {
+        free (regulator);
+      }
+      regulator = new SmokerRegulator(cur_temp, &target_temp, target_temp_location == TARGET_TEMP_MEAT, gasValve, smokeValve, smokerRegulationInterval);
+      regulator->start();
     }
     // Do all the regulating one every x seconds. Else there is to much turning on all the knobs
     time_t current = RTC.get();
@@ -268,22 +285,23 @@ void loop() {
         smoking_started = false;
       }
       // Get the positions of the gasvalve steppermotor and smoke valve servo
-      gasValvePos = gasValve.getCurrentPosition();
+      gasValvePos = gasValve->getCurrentPosition();
       smokeValvePos = smokeValve->getCurrentPosition();
 
       // Also update the LCD display to show the current positions (temps are already done
       tft->displayValveStatus(smokeValvePos, gasValvePos);
       
       // Now determine which temperature to use and see what the diff is between the current temp and the target temp
-      float temp = (target_temp_location == TARGET_TEMP_BARREL)?barrelTemp:meatTemp;
-      float tempdif = target_temp - temp;
+      float tempdif = target_temp - *cur_temp;
 
       // Now write all the logging for later inspection
-      logger.writeLoggingInfo(ambientTemp, meatTemp, barrelTemp, ovenAmbTemp, target_temp, target_temp_location, temp, tempdif, lasttempdif, gasValvePos, smokeValvePos);
-
+      logger.writeLoggingInfo(ambientTemp, meatTemp, barrelTemp, ovenAmbTemp, target_temp, target_temp_location, *cur_temp, tempdif, lasttempdif, gasValvePos, smokeValvePos);
+      
+      regulator->regulate();
       // tempdif > 0 betekent dat de temperatuur nog niet bereikt is. Er mag nog doorgestookt worden, 
       // alleen moet als de tempdif bijna bij 0 is wel opgelet worden dat de gaskraan niet meer hoog open blijft.
 
+  /*
       if (tempdif > 0) { // is it too cold. but how much? And was it to cold last time?
         logger.writeln("1: tempdif > 0");
         if (lasttempdif < 0) { // was it to hot last time?
@@ -294,11 +312,11 @@ void loop() {
           } else if (tempdif < 3) { // 3 degrees to cold, but last time it was too hot, so the temp dropped a lot
             logger.writeln("1.1.2: tempdif < 3");
             smokeValve->fullyClose(); // close the smokevalve fully. 
-            gasValve.open(1); // just 1 step open
+            gasValve->open(1); // just 1 step open
           } else { // more than 3 degrees temp drop in 1 minute. That is really strange. 
             logger.writeln("1.1.3: tempdif >= 3");
             smokeValve->fullyClose(); // close the smokevalve
-            gasValve.open(3); // turn on the heat
+            gasValve->open(3); // turn on the heat
           }
         } else { // it was not to hot last time
           logger.writeln("1.2: lasttempdif >= 0");
@@ -307,62 +325,62 @@ void loop() {
             logger.writeln("1.2.1: tempdif < 5");
             if (lasttempdif <= tempdif) { // it even got colder?
               logger.writeln("1.2.1.1: lasttempdif <= tempdif");
-              gasValve.open(1); // open the gas a little bit
+              gasValve->open(1); // open the gas a little bit
               smokeValve->close(5); // and close the smokevalve;
             } else if (lasttempdif < 10) { // it was 10 degrees to cold and now 5. So lets temper the fire and hope it will use the restwarmte
               logger.writeln("1.2.1.2: lasttempdif < 10");
-              if (gasValve.close(5)) { // now fully closed?
+              if (gasValve->close(5)) { // now fully closed?
                 // do something with the smokevalve? I don't know 
-               logger.writeln("1.2.1.2.1: gasvalve.close == true");
+               logger.writeln("1.2.1.2.1: gasValve->close == true");
              } 
             } else if (lasttempdif < 20) {
               logger.writeln("1.2.1.3: lasttempdif < 20");
 
               // So it was almost 20 degrees in 1 cycle
-              if (gasValve.isFullyClosed()) { // is the gasvalve already closed and it still raised that much?
-               logger.writeln("1.2.1.3.1: gasValve.isFullyClosed()");
+              if (gasValve->isFullyClosed()) { // is the gasvalve already closed and it still raised that much?
+               logger.writeln("1.2.1.3.1: gasValve->isFullyClosed()");
                smokeValve->fullyOpen();
               } else {
-               logger.writeln("1.2.1.3.2: !gasValve.isFullyClosed()");
-                gasValve.fullyClose(); // 
+               logger.writeln("1.2.1.3.2: !gasValve->isFullyClosed()");
+                gasValve->fullyClose(); // 
                 smokeValve->open(20);
               }
             } else { // more than 20 degrees in one cycle. So vent it and hope the temp will not raise to much
               logger.writeln("1.2.1.4: lasttempdif >= 20");
-              gasValve.fullyClose();
+              gasValve->fullyClose();
               smokeValve->fullyOpen();
             }
           } else if (tempdif < 10) { // just 10 degrees to cold
               logger.writeln("1.2.2: tempdif < 10");
              if (lasttempdif < 10) { // but last time it was also 10 degrees to cold
                logger.writeln("1.2.2.1: tempdif < 10");
-               if (gasValve.open(3)) {// turn on the gas
-                 logger.writeln("1.2.2.1.1: gasvalve.open == true");
+               if (gasValve->open(3)) {// turn on the gas
+                 logger.writeln("1.2.2.1.1: gasValve->open == true");
                  // it is now fully open. 
                  smokeValve->fullyClose(); // so close the smokevalve, if opened
                }
              } else {
                logger.writeln("1.2.2.2: tempdif >= 10");
-               gasValve.close(3); // close the gas a little bit so it won't rise to fast
+               gasValve->close(3); // close the gas a little bit so it won't rise to fast
              }
            
           } else if (tempdif < 30) { // 30 degrees to cold. 
             logger.writeln("1.2.3: tempdif < 30");
             if (lasttempdif < 30) { // but last time it was also 30 degrees to cold
               logger.writeln("1.2.3.1: lasttempdif < 30");
-              if (gasValve.open(5)) {// turn on the gas
-                logger.writeln("1.2.3.1.1: gasvalve.open == true");
+              if (gasValve->open(5)) {// turn on the gas
+                logger.writeln("1.2.3.1.1: gasValve->open == true");
                 // it is now fully open. 
                 smokeValve->fullyClose(); // so close the smokevalve, if opened
               }
             } else {
               logger.writeln("1.2.3.2: lasttempdif >= 30");
-              gasValve.close(1); // close the gas a little bit so it won't rise to fast
+              gasValve->close(1); // close the gas a little bit so it won't rise to fast
             }
               
           } else {
             logger.writeln("1.2.4: tempdif >= 30");
-            gasValve.fullyOpen();
+            gasValve->fullyOpen();
             smokeValve->fullyClose();
           }
         }
@@ -378,8 +396,8 @@ void loop() {
         if (lasttempdif < 0) { // Hij was vorige keer ook al te warm.
           logger.writeln("2.1: lasttempdif < 0");
           // now check the position of the gasvalve
-          if (gasValve.isFullyClosed()) { // the GasValve is already totally closed
-            logger.writeln("2.1.1: gasValve.isFullyClosed()");
+          if (gasValve->isFullyClosed()) { // the GasValve is already totally closed
+            logger.writeln("2.1.1: gasValve->isFullyClosed()");
             // So check the smokeValve
             if (smokeValve->isFullyOpen()) { // Is the smokevalve totally open?
               logger.writeln("2.1.1.1: smokeValve->isFullyClosed()");
@@ -398,8 +416,8 @@ void loop() {
               }
             }
           } else { // the gasvalve is not fully closed, but the temp is to hot. Just close it now
-            logger.writeln("2.1.2: !gasValve.isFullyClosed()");
-            gasValve.fullyClose();
+            logger.writeln("2.1.2: !gasValve->isFullyClosed()");
+            gasValve->fullyClose();
 
             if (tempdif >-3) { // 3 degrees to hot? Open the smokevalve so the temp can drop faster
               logger.writeln("2.1.2.1: tempdif > -3");
@@ -411,8 +429,8 @@ void loop() {
           }
         } else { // last time it was not to hot, so it is just to hot
           logger.writeln("2.2: lasttempdif >= 0");
-          if (gasValve.isFullyClosed()) { // is the gasvalve already closed?
-            logger.writeln("2.2.1: gasValve.isFullyClosed()");
+          if (gasValve->isFullyClosed()) { // is the gasvalve already closed?
+            logger.writeln("2.2.1: gasValve->isFullyClosed()");
             if (smokeValve->isFullyOpen()) { // is the smokevalve already open?
               logger.writeln("2.2.1.1: smokeValve->isFullyOpen()");
               // Don't know what to do now. Both controls are exhausted 
@@ -430,36 +448,36 @@ void loop() {
               }
             }
           } else { // the gasvalve is not fully closed yet.             
-           logger.writeln("2.2.2: !gasValve.isFullyClosed()");
+           logger.writeln("2.2.2: !gasValve->isFullyClosed()");
            if (tempdif > -1) { // just 1 degree to hot?
               logger.writeln("2.2.2.1: tempdif > -1");
-              if (gasValve.close(2)) { // close 2 steps, but is it totally closed now?
-                logger.writeln("2.2.2.1.1: gasvalve.close == true");
+              if (gasValve->close(2)) { // close 2 steps, but is it totally closed now?
+                logger.writeln("2.2.2.1.1: gasValve->close == true");
                 smokeValve->open(5); // Open more, because gas is closed now
               }  else {
-                logger.writeln("2.2.2.1.2: gasvalve.close != true");
+                logger.writeln("2.2.2.1.2: gasValve->close != true");
                 smokeValve->open(1); // just 1 step extra open
               }
             } else if (tempdif >-3) {
               logger.writeln("2.2.2.2: tempdif > -3");
-              if (gasValve.close(5)) {
-                logger.writeln("2.2.2.2.1: gasvalve.close == true");
+              if (gasValve->close(5)) {
+                logger.writeln("2.2.2.2.1: gasValve->close == true");
                 smokeValve->open(20);
               } else {
-                logger.writeln("2.2.2.2.2: gasvalve.close != true");
+                logger.writeln("2.2.2.2.2: gasValve->close != true");
                 smokeValve->open(5); // 5 steps extra open
               }
             } else { // More than 3 degrees to hot? Open the smokevalve totally
               logger.writeln("2.2.2.3: tempdif <= -3");
-              gasValve.fullyClose();
+              gasValve->fullyClose();
               smokeValve->fullyOpen();
             }
           }
         }
       }
-
+*/
       // store the current temps for the next round, so we can see how fast the temp is raising or dropping  
-      lasttemp = temp;
+      lasttemp = *cur_temp;
       lasttempdif = tempdif;
 
       // now make sure the interval is reset
@@ -468,6 +486,7 @@ void loop() {
       unsigned long seconds_smoking_left = determineSmokingTimeLeftInSeconds(starttime, lastregulation, rooktijd);
       tft->displayTimeRemaining(seconds_smoking_left, smoking_started);
       if (seconds_smoking_left<0) {
+        regulator->stop();
         smoking_started=false;
         firstSmokeLoop=true;
         logger.writeln("Smoking stopped because end time is reached");

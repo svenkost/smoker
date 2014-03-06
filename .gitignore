@@ -1,0 +1,5 @@
+*.mk
+.cproject
+.project
+.DS_Store
+.settings

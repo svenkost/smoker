@@ -449,6 +449,9 @@ void Menu::display(UTFT *t) {
 			t->print(sel->getQuestion(), CENTER, 12);
 		}
 		t->setFont(BigFont);
+		t->setColor(255,255,255);
+		t->fillRect(80, 40, 240, 56);
+		t->setColor(255,0,255);
 		t->print(sel->getValue(), CENTER, 40);
 
 	} else {

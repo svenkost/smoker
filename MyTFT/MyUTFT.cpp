@@ -165,7 +165,7 @@ void MyUTFT::displayTemps(float ambient, float meat, float barrelamb, float barr
 			tft->setColor(255,255,255);
 			tft->drawRect(81, 211, 78+81, 28+211);
 			tft->setColor(153,50,204);
-			tft->drawRect(241, 211, 78+81, 28+211);
+			tft->drawRect(241, 211, 78+241, 28+211);
 		}
 	}
 	init_temps=true;
@@ -216,7 +216,7 @@ void MyUTFT::displayTimeRemaining(unsigned long secondsRemaining, int smokingSta
 		int minutes = (secondsRemaining%3600)/60;
 		int seconds = (secondsRemaining%3600)%60;
 		tft->setColor(255,255,255);
-		tft->fillRect(60,124,319,178);
+		tft->fillRect(40,124,319,178);
 
 		tft->setColor(255,0,0);
 		tft->drawRect(0,120,319,180);

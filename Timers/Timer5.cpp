@@ -75,7 +75,7 @@ void TimerFive::setPeriod(long microseconds)
   OCR5A = pwmPeriod = cycles;
   TCCR5B |= _BV(WGM52);
   TCCR5B &= ~(_BV(CS50) | _BV(CS51) | _BV(CS52));
-  TIMSK5 |= _BV(OCIE4A);
+  TIMSK5 |= _BV(OCIE5A);
 
   TCCR5B |= clockSelectBits;                                                     // reset clock select register
 }

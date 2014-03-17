@@ -27,7 +27,7 @@ void MyUTFT::init() {
 	last_smoking_started =-1;
 	init_temps=false;
 	init_valves=false;
-
+	last_tempdif = -1;
 }
 
 UTFT* MyUTFT::getTFT() {
@@ -35,20 +35,21 @@ UTFT* MyUTFT::getTFT() {
 }
 
 void MyUTFT::displayTime(tmElements_t *time) {
+//	tft->setColor(255, 255, 255);
+//	tft->fillRect(80, 2, 240, 9);
 	tft->setColor(0, 0, 0);
 	tft->drawRect(0, 0, 319, 11);
-	tft->setFont(BigFont);
 	tft->setFont(TinyFont);
 	String timestr = String(time->Day)+
 			String("-")+
 			String(time->Month)+
 			String("-")+
 			String(tmYearToCalendar(time->Year))+
-			String("   ")+
+			String(time->Hour<10?"   0":"   ")+
 			String(time->Hour)+
-			String(":")+
+			String(time->Minute<10?":0":":")+
 			String(time->Minute)+
-			String(":")+
+			String(time->Second<10?":0":":")+
 			String(time->Second);
 	tft->print(timestr, CENTER, 2);
 }
@@ -209,26 +210,43 @@ void MyUTFT::displayValveStatus(int smokeValve, int gasValve) {
 
 }
 
-void MyUTFT::displayTimeRemaining(unsigned long secondsRemaining, int smokingStarted) {
-	if (last_secondsRemaining != secondsRemaining) {
-		last_secondsRemaining = secondsRemaining;
-		int hours = secondsRemaining/3600;
-		int minutes = (secondsRemaining%3600)/60;
-		int seconds = (secondsRemaining%3600)%60;
-		tft->setColor(255,255,255);
-		tft->fillRect(40,124,319,178);
+void MyUTFT::displayTimeRemainingOrTargetTemp(unsigned long secondsRemaining, double temp_diff,
+		int smokingStarted, bool displayTime) {
 
-		tft->setColor(255,0,0);
-		tft->drawRect(0,120,319,180);
+	if (displayTime) {
+		if (last_secondsRemaining != secondsRemaining) {
+			last_secondsRemaining = secondsRemaining;
+			last_tempdif = -1;
+			int hours = secondsRemaining/3600;
+			int minutes = (secondsRemaining%3600)/60;
+			int seconds = (secondsRemaining%3600)%60;
+			tft->setColor(255,255,255);
+			tft->fillRect(40,124,319,178);
 
-		tft->setFont(SevenSegNumFontPlus);
-		String timestr = String(hours)+
-				String(minutes<10?":0":":")+
-				String(minutes)+
-				String(seconds<10?":0":":")+
-				String(seconds);
-		tft->print(timestr, 40, 124);
+			tft->setColor(255,0,0);
+			tft->drawRect(0,120,319,180);
+
+			tft->setFont(SevenSegNumFontPlus);
+			String timestr = String(hours)+
+					String(minutes<10?":0":":")+
+					String(minutes)+
+					String(seconds<10?":0":":")+
+					String(seconds);
+			tft->print(timestr, 40, 124);
+		}
+	} else { //Display target temp
+		if (last_tempdif != temp_diff) {
+			last_secondsRemaining = -1;
+			last_tempdif = temp_diff;
+			tft->setColor(255,255,255);
+			tft->fillRect(40,124,319,178);
+			tft->setColor(255,0,0);
+			tft->drawRect(0,120,319,180);
+			tft->setFont(SixteenSegment);
+			tft->printNumF(temp_diff, 1, 80, 124);
+		}
 	}
+
 	if (last_smoking_started != smokingStarted) {
 		last_smoking_started = smokingStarted;
 		if (smokingStarted==1) {

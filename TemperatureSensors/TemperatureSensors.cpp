@@ -64,52 +64,22 @@ float TemperatureSensors::getTemperature(DeviceAddress *addr) {
 }
 
 float TemperatureSensors::getNTCAvgTemp(uint8_t pin) {
-//	float temps[MAX_SAMPLES_NTC], min_temp, max_temp, avg=0.0f;
-//	int min_index, max_index;
 	float avg;
 
 	stat->clear();
 	for (int i=0;i<MAX_SAMPLES_NTC;i++) {
 		stat->add(getNTCTemp(analogRead(pin), (float)RBALANCE, RNTCNOMINAL, 4783));
 	}
-	avg = stat->average();
+	avg = round(stat->average()*10)/10; // round on one decimal, so the screen is not updated every time
 
-/*
-		temps[i] = getNTCTemp(analogRead(pin), (float)RBALANCE, RNTCNOMINAL, 4783);
-		if (i==0) {
-			min_temp = temps[0];
-			max_temp = temps[0];
-			min_index = 0;
-			max_index = 0;
-		} else {
-			if (temps[i]<min_temp) {
-				min_temp = temps[i];
-				min_index = i;
-			};
-			if (temps[i]>max_temp) {
-				max_temp = temps[i];
-				max_index = i;
-			}
-		}
-	}
-
-	for (int i=0;i<MAX_SAMPLES_NTC;i++) {
-		if (i != min_index && i != max_index) {
-			avg += temps[i];
-		}
-	}
-	avg /= MAX_SAMPLES_NTC-2;
-	*/
 	return avg;
 }
-
 
 float TemperatureSensors::getVoltage(int analogValue) {
 	return 5.04f * analogValue / 1024.0f + 0.009f;
 }
 
 float TemperatureSensors::getNTCTemp(int analogValue, float rBalance, float R25, float tempCoefficient) {
-
 	if (analogValue == 1023) {
 		return 0.0f;
 	}

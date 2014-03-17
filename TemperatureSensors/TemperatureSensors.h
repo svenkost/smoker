@@ -10,6 +10,7 @@
 
 #include "Arduino.h"
 #include <stdlib.h>
+#include "math.h"
 
 #include <OneWire.h>
 #include <DallasTemperature.h>

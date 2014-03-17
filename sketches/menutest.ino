@@ -35,6 +35,8 @@
 
 #include <Statistic.h>
 
+const int END_ON_TIME = 0;
+const int END_ON_TEMP = 1;
 
 const int menuSelectorRE_A = 19;
 const int menuSelectorRE_B = 27;
@@ -81,8 +83,9 @@ MyUTFT *mytft;
 const int TARGET_TEMP_BARREL = 0;
 const int TARGET_TEMP_MEAT = 1;
 
-double target_temp=30;
+double target_temp=70;
 int target_temp_location=0;
+int smoking_end_selector = END_ON_TIME;
 int smoking_started=0;
 unsigned long rooktijd=600;
 int current_hour=10;
@@ -115,28 +118,33 @@ void setup() {
 //  delay(500);  
 //  led1.changeColor(&COLOR_RED);
 
-  tmElements_t tm;
-  tm.Hour=20;
-  tm.Minute=15;
-  tm.Second=30;
-  tm.Month=3;
-  tm.Day=21;
-  tm.Year=CalendarYrToTm(2014);   
-  mytft->displayTime(&tm);
+//  tmElements_t tm;
+//  RTC.read(tm);
+//  tm.Hour=20;
+//  tm.Minute=15;
+//  tm.Second=30;
+//  tm.Month=3;
+//  tm.Day=21;
+//  tm.Year=CalendarYrToTm(2014);   
+//  mytft->displayTime(&tm);
     
   pinMode(menuButton, INPUT);
   attachInterrupt(getInterruptForPin(18), bPressed, FALLING);
   createMenu();
 
-  
 }
 
 void loop() {
   double ambientTemp = tempSensors->getAmbientTemperature();
   double barrelAmbTemp = tempSensors->getOvenAmbientTemperature();
   double meatTemp = tempSensors->getMeatTemperature();
+  
+  tmElements_t tm;
+  RTC.read(tm);
+  
+  mytft->displayTime(&tm);
   mytft->displayTemps(ambientTemp, meatTemp, barrelAmbTemp, 123.5f, target_temp, target_temp_location == TARGET_TEMP_MEAT);
-  mytft->displayTimeRemaining(rooktijd*60l, smoking_started);
+  mytft->displayTimeRemainingOrTargetTemp(rooktijd*60l, target_temp-(target_temp_location == TARGET_TEMP_MEAT?meatTemp:barrelAmbTemp), smoking_started, smoking_end_selector == END_ON_TIME);
   mytft->displayValveStatus(90, 215);
   
   long newvalue;
@@ -147,7 +155,7 @@ void loop() {
   wasInSelected = false;
   selected=false;
   unsigned long tijd = millis();
-  while (!selected && !wasInSelected && (millis() - tijd < 5000)) { // every 5 seconds a refresh
+  while (!selected && !wasInSelected && (millis() - tijd < 1000)) { // every 1 seconds a refresh
     delay(100);
     newvalue = menuSelector.read();
     if ((newvalue - encvalue) % 4 != 0) {
@@ -186,9 +194,13 @@ void createMenu() {
   StringOption* startopties = new StringOption("Nee\0");
   startopties->addOption("Ja\0");
   
+  StringOption* eindopties = new StringOption("Tijd bereikt\0");
+  eindopties->addOption("Temp. bereikt\0");
+  
   DoubleSelector *tempsel = new DoubleSelector("Stel temperatuur in:\0", &target_temp, 0.5f, 10, 250);
   StringSelector *valuesel = new StringSelector("Meet locatie:\0", &target_temp_location, opt);
   TimeSelector *timesel = new TimeSelector("Rooktijd:\0", &rooktijd, 5);
+  StringSelector *eindsel = new StringSelector("Roken is afgelopen:\0", &smoking_end_selector, eindopties);
   StringSelector *smokestartsel = new StringSelector("Nu starten:\0", &smoking_started, startopties);
   
   Menu *instellingen = new Menu();
@@ -209,7 +221,8 @@ void createMenu() {
   mainMenu->addItem(2, "Eind temperatuur\0", false, NULL, tempsel);
   mainMenu->addItem(3, "Vlees of vat sensor\0", false, NULL, valuesel);
   mainMenu->addItem(4, "Rooktijd\0", false, NULL, timesel);
-  mainMenu->addItem(5, "Instellingen\0", true, instellingen, NULL);
+  mainMenu->addItem(5, "Einde\0", false, NULL, eindsel);
+  mainMenu->addItem(6, "Instellingen\0", true, instellingen, NULL);
   
 }
 

@@ -9,6 +9,7 @@
 #include <MyUTFT.h>
 #include <SmokerRegulator.h>
 #include <Statistic.h>
+#include <Timer5.h>
 
 //3rd party libraries
 #include <Encoder.h>
@@ -35,6 +36,9 @@
 #include <Stepper.h>
 
 #include <PID_v1.h>
+
+const int END_ON_TIME = 0;
+const int END_ON_TEMP = 1;
 
 const int TARGET_TEMP_BARREL = 0;
 const int TARGET_TEMP_MEAT = 1;
@@ -117,6 +121,7 @@ Logger logger(SD_CS);
 /* Here are all the parameters for the application */
 double target_temp = 30.0; // The target temperature 
 int target_temp_location = TARGET_TEMP_BARREL;
+int smoking_end_selector = END_ON_TIME;
 unsigned long rooktijd=120; //smoketime in minutes
 
 int current_hour=10;
@@ -128,7 +133,14 @@ int current_year=2014;
 
 int smoking_started = 0; //Is the barrel up-and-running, or are we in 'setup mode'?
 long encvalue=0; // used for the menu-rotary encoder
+
+// Button volatile variables
 volatile bool wasInSelected=false;
+volatile unsigned long lastclick = 0;
+
+// HW Timer Interrupt regulator variables
+volatile int regulatorCounter =0;
+volatile bool regulationInProgress = false;
 
 time_t starttime, lastregulation; // times for start and lastregulation
 boolean firstSmokeLoop=true;
@@ -140,7 +152,11 @@ float lasttemp, lasttempdif;
 void setup() {
   // initialize Serial device to support debugging
   Serial.begin(9600);
-
+  
+  //Timer5 is used for the regulator
+  Timer5.initialize();
+  Timer5.attachInterrupt(cbRegulator, 1000000); // Every second
+  
   //initialize the thermometers
   tempSensors = new TemperatureSensors(oneWireTempSensors_pin, barrelTempPin, meatTempPin, barrelTCPin);
 
@@ -210,7 +226,8 @@ void loop() {
   mainMenu->display(tft->getTFT());
   wasInSelected = false;
   selected=false;
-  while (!selected && !wasInSelected) {
+  unsigned long tijd = millis();
+  while (!selected && !wasInSelected && (millis() - tijd < 1000)) { // every second a refresh
     newvalue = menuSelector.read();
     if ((newvalue - encvalue) % 4 != 0) {
       continue;
@@ -232,10 +249,10 @@ void loop() {
         encvalue=newvalue;
         selected=true;
       } 
-      else {
-        delay(100);
-        //the same so wait for a new value
-      }
+//      else {
+//        delay(100);
+//        //the same so wait for a new value
+//      }
     }
   }
 
@@ -266,13 +283,13 @@ void loop() {
       if (regulator != NULL) {
         free (regulator);
       }
-      regulator = new SmokerRegulator(cur_temp, &target_temp, target_temp_location == TARGET_TEMP_MEAT, gasValve, smokeValve, smokerRegulationInterval);
+      regulator = new SmokerRegulator(cur_temp, &target_temp, target_temp_location == TARGET_TEMP_MEAT, gasValve, smokeValve, smokerRegulationInterval*1000);
       regulator->start();
+      Timer5.start();
     }
     // Do all the regulating one every x seconds. Else there is to much turning on all the knobs
     time_t current = RTC.get();
-    if (current - lastregulation > smokerRegulationInterval) {
-
+    if (regulationInProgress) {
       // Check the temps
       barrelTemp = tempSensors->getBarrelTemperature();
       meatTemp = tempSensors->getMeatTemperature();
@@ -296,8 +313,11 @@ void loop() {
 
       // Now write all the logging for later inspection
       logger.writeLoggingInfo(ambientTemp, meatTemp, barrelTemp, ovenAmbTemp, target_temp, target_temp_location, *cur_temp, tempdif, lasttempdif, gasValvePos, smokeValvePos);
-      
+
       regulator->regulate();
+      regulationInProgress = false;
+//    }
+      
       // tempdif > 0 betekent dat de temperatuur nog niet bereikt is. Er mag nog doorgestookt worden, 
       // alleen moet als de tempdif bijna bij 0 is wel opgelet worden dat de gaskraan niet meer hoog open blijft.
 
@@ -484,7 +504,7 @@ void loop() {
       lastregulation = RTC.get();
       // now check if the endtime is reached
       unsigned long seconds_smoking_left = determineSmokingTimeLeftInSeconds(starttime, lastregulation, rooktijd);
-      tft->displayTimeRemaining(seconds_smoking_left, smoking_started);
+      tft->displayTimeRemainingOrTargetTemp(seconds_smoking_left, tempdif, smoking_started, smoking_end_selector == END_ON_TIME);
       if (seconds_smoking_left<0) {
         regulator->stop();
         smoking_started=false;
@@ -561,8 +581,11 @@ void createMenu() {
 The interrupt routine for the button
  */
 void bPressed() {
-  mainMenu->selectCurrent();
-  wasInSelected = true;
+  if (millis() > lastclick+500) { // is the last click more than 50 milliseconds old?
+    lastclick = millis();
+    mainMenu->selectCurrent();
+    wasInSelected = true;
+  }
 };
 
 /*
@@ -592,6 +615,17 @@ int getInterruptForPin (uint8_t pin) {
     break;
   }
   return interrupt;
+}
+
+void cbRegulator() {
+  if (regulatorCounter >= 60) {
+    regulatorCounter = 0;
+    regulationInProgress = true;
+  } else {
+    if (!regulationInProgress) {
+      regulatorCounter++;
+    }
+  }
 }
 
 

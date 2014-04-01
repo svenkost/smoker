@@ -6,22 +6,60 @@
  */
 #include "GasValve.h"
 
-const int stepsPerRevolution = 200;  // change this to fit the number of steps per revolution
-                                     // for your motor
 const int stepSize = 10;
 
+MyStepper::MyStepper(uint8_t pin1, uint8_t pin2, uint8_t pin3, uint8_t pin4) {
+	pinA=pin1;
+	pinB=pin2;
+	pinC=pin3;
+	pinD=pin4;
+	delayTime=5;
+	pinMode(pinA, OUTPUT);
+	pinMode(pinB, OUTPUT);
+	pinMode(pinC, OUTPUT);
+	pinMode(pinD, OUTPUT);
+}
+
+
+void MyStepper::step(int count) {
+	if (count > 0) {
+		for (int i=0;i<count;i++) {
+			for (int j=0;j<=3;j++) {
+				digitalWrite(pinA, j==0?HIGH:LOW);
+				digitalWrite(pinB, j==1?HIGH:LOW);
+				digitalWrite(pinC, j==2?HIGH:LOW);
+				digitalWrite(pinD, j==3?HIGH:LOW);
+				delay(delayTime);
+			}
+		}
+	} else {
+		for (int i=0;i>count;i--) {
+			for (int j=0;j<=3;j++) {
+				digitalWrite(pinA, j==3?HIGH:LOW);
+				digitalWrite(pinB, j==2?HIGH:LOW);
+				digitalWrite(pinC, j==1?HIGH:LOW);
+				digitalWrite(pinD, j==0?HIGH:LOW);
+				delay(delayTime);
+			}
+		}
+	}
+}
+
+/*
+ * Constructs the gasvalve class. It uses a rotary encoder to monitor the stepper motor
+ */
 GasValve::GasValve(Encoder *re, uint8_t pinA, uint8_t pinB, uint8_t pinC, uint8_t pinD) {
 	gasValveCheck = re;
 	flame_max=false;
 	flame_min=false;
 	current_position=0;
 	// initialize the stepper library
-	gasValveStepper = new Stepper(stepsPerRevolution, pinA, pinB, pinC, pinD);
-
+	gasValveStepper = new MyStepper(pinA, pinB, pinC, pinD);
 };
 
 /*
- * steps until the rotary encoder doesn't move any more
+ * steps until the number of steps is reached or
+ * the rotary encoder doesn't move any more
  * false = not yet at an end; true = end reached
  */
 bool GasValve::stepWithREFeedback(int steps) {
@@ -52,7 +90,7 @@ bool GasValve::stepWithREFeedback(int steps) {
 				end=true;
 			}
 
-		} else {
+		} else { // The rotary encoder did move
 			current_position += step;
 
 			if (flame_min && steps>0) {
@@ -73,7 +111,8 @@ bool GasValve::stepWithREFeedback(int steps) {
 void GasValve::fullyClose(void) {
 	// it doesn't really matter how many steps, because it is monitored by
 	// a rotary encoder.
-	stepWithREFeedback(-2000);
+	while(!stepWithREFeedback(-2000))
+		;
 }
 
 
@@ -83,7 +122,8 @@ void GasValve::fullyClose(void) {
 void GasValve::fullyOpen(void) {
 	// it doesn't really matter how many steps, because it is monitored by
 	// a rotary encoder.
-	stepWithREFeedback(2000);
+	while (!stepWithREFeedback(2000))
+		;
 }
 
 /*
@@ -108,10 +148,16 @@ bool GasValve::open(int steps) {
 	return result;
 }
 
+/*
+ * is the gasvalve fully open?
+ */
 bool GasValve::isFullyOpen(void) {
 	return flame_max;
 }
 
+/*
+ * is the gasvalve fully closed?
+ */
 bool GasValve::isFullyClosed(void) {
 	return flame_min;
 }

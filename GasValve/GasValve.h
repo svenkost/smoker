@@ -12,8 +12,16 @@
 
 #include <stdlib.h>
 #include "Encoder.h"
-#include <Stepper.h>
 #include <Servo.h>
+
+class MyStepper {
+protected:
+	uint8_t pinA, pinB, pinC, pinD;
+	int delayTime;
+public:
+	MyStepper(uint8_t pin1, uint8_t pin2, uint8_t pin3, uint8_t pin4);
+	void step(int count);
+};
 
 class Valve {
 protected:
@@ -31,7 +39,7 @@ public:
 class GasValve : public Valve {
 protected:
 	Encoder* gasValveCheck;
-	Stepper* gasValveStepper;
+	MyStepper* gasValveStepper;
 	bool flame_min; // Indicator that the motor is at the beginning
 	bool flame_max; // Indicator that the motor is at the end
 
